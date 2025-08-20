@@ -40,27 +40,25 @@ def check_discarded_groups(group_counts, add_discarded_groups):
 
 def get_loaders(hparams):
 
-    Dset = {'Waterbirds': Waterbirds if not hparams['precompute_features'] else FeatWaterbirds,
-            'CelebA': CelebA if not hparams['precompute_features'] else FeatCelebA,
-            'CelebAMultiAttr': CelebAMultiAttr if not hparams['precompute_features'] else FeatCelebAMultiAttr,
-            'MultiNLI': MultiNLI if not hparams['precompute_features'] else FeatMultiNLI,
-            'CivilComments': CivilComments if not hparams['precompute_features'] else FeatCivilComments,
-            'Simple_2d': FeatSimple2d,
-            'SynAED_2': FeatSynAED,
-            'SynAED_10': FeatSynAED,
-            'SynAED_20': FeatSynAED,
-            'SynAED_30': FeatSynAED,
-            'SynAED_40': FeatSynAED,
-            'SynAED_50': FeatSynAED,
-            'SynGenAED_2': FeatSynAED,
-            'SynGenAED_7': FeatSynAED,
-            'SynGenAED_8': FeatSynAED,
-            'SynGenAED_9': FeatSynAED,
-            'SynGenAED_10': FeatSynAED,
-            'SynGenAED_11': FeatSynAED,
-            'MetaShift': MetaShift if not hparams['precompute_features'] else FeatMetaShift,
-            'NICOpp': NICOpp if not hparams['precompute_features'] else FeatNICOpp,
-            'CompositionalNICOpp': NICOpp if not hparams['precompute_features'] else FeatNICOpp}[hparams['dataset_name']]
+    # Base dataset mappings
+    base_datasets = {
+        'Waterbirds': Waterbirds if not hparams['precompute_features'] else FeatWaterbirds,
+        'CelebA': CelebA if not hparams['precompute_features'] else FeatCelebA,
+        'CelebAMultiAttr': CelebAMultiAttr if not hparams['precompute_features'] else FeatCelebAMultiAttr,
+        'MultiNLI': MultiNLI if not hparams['precompute_features'] else FeatMultiNLI,
+        'CivilComments': CivilComments if not hparams['precompute_features'] else FeatCivilComments,
+        'Simple_2d': FeatSimple2d,
+        'MetaShift': MetaShift if not hparams['precompute_features'] else FeatMetaShift,
+        'NICOpp': NICOpp if not hparams['precompute_features'] else FeatNICOpp,
+        'CompositionalNICOpp': NICOpp if not hparams['precompute_features'] else FeatNICOpp
+    }
+    
+    # Handle SynAED and SynGenAED datasets dynamically
+    dataset_name = hparams['dataset_name']
+    if 'SynAED' in dataset_name:
+        Dset = FeatSynAED
+    else:
+        Dset = base_datasets[dataset_name]
     
     data_path = hparams['data_path']
     # subg= 1
@@ -75,10 +73,10 @@ def get_loaders(hparams):
         assert len(add_discarded_groups) == 1
         add_discarded_groups= np.load('data/nicopp_dropped_group_exp/discarded_group_scenario_' + add_discarded_groups[0] + '.npy').tolist()
         
-    if ( 'SynAED' in hparams['dataset_name'] or 'SynGenAED' in hparams['dataset_name'] )  and len(add_discarded_groups):
+    if 'SynAED' in hparams['dataset_name']  and len(add_discarded_groups):
         #Special structure where the argument add_discarded_group does not directly denote the groups to be discarded, rather it denotes which scenario of dropped groups to load based on pre-processing for NICOpp.
         assert len(add_discarded_groups) == 1
-        add_discarded_groups= np.load( data_path + '/syn_aed_dep/seed_' + str(hparams['seed']) + '_discarded_group_scenario_' + add_discarded_groups[0] + '.npy').tolist()        
+        add_discarded_groups= np.load(os.path.join(data_path, 'seed_' + str(hparams['seed']) + '_discarded_group_scenario_' + add_discarded_groups[0] + '.npy')).tolist()        
 
     tr = Dset(data_path, split='tr', num_attr= hparams['num_m'], num_labels= hparams['num_y'], group_labels=gl, subg=subg, add_discarded_groups= add_discarded_groups)
     #For the case of compositional NICOpp, we have to remove group from validation that were absent in training
@@ -423,7 +421,7 @@ class FeatNICOpp(BaseFeatDataset):
 class FeatSynAED(BaseFeatDataset):
     def __init__(self, data_path, split, num_attr, num_labels, group_labels, subg, add_discarded_groups):
         super().__init__(
-            data_path, split, num_attr, num_labels, group_labels, subg, 'syn_aed_dep', add_discarded_groups= add_discarded_groups)
+            data_path, split, num_attr, num_labels, group_labels, subg, '', add_discarded_groups= add_discarded_groups)
 
 class FeatSimple2d(BaseFeatDataset):
     def __init__(self, data_path, split, num_attr, num_labels, group_labels, subg, add_discarded_groups):

@@ -25,6 +25,7 @@ Compositional generalization is a crucial step towards developing data-efficient
   - [Quick Run](#quick-run)
   - [Hyperparameter Tuning Results](#hyperparameter-tuning-results)
   - [Analyzing Results](#analyzing-results)
+  - [Group Complexity Experiments](#group-complexity-experiments)
 - [License](#license)
 
 ## Requirements
@@ -38,7 +39,7 @@ conda your_env create -f environment.yml
 ## Download and Pre-process Data
 
 ```bash
-python -m src.scripts.download --datasets waterbirds celeba civilcomments multinli metashift nicopp --data_path ./data --download  --gen_meta_data --precompute_feat
+python -m src.scripts.download --datasets waterbirds celeba civilcomments multinli metashift nicopp --data_path ./datasets --download  --gen_meta_data --precompute_feat
 ```
 
 Note that ```--precompute_feat``` flag does a forward pass for one epoch to store the feateures from the pretrained backbone for each dataset. This is useful for linear probing (no finetuning) experiments as we can directly load these precomputed features instead of computing them during the training/inference loop. For larger datasets (CivilComments, MultiNLI) this step might take a while to complete, so the user can skip the ```--precompute_feat``` flag if they do not intend to do linear probing experiments.
@@ -57,7 +58,7 @@ ALGOS="CRM"
 For a fast linear probing experiment with fixed hyperparameters, run the following command.
  
 ```bash
-python -m src.main --case train --datasets $DATASETS  --algorithms $ALGOS --data_path ./data --out_dir ./out --add_discarded_group 0 --quick_run --precompute_features --seed 1 
+python -m src.main --case train --datasets $DATASETS  --algorithms $ALGOS --data_path ./datasets --out_dir ./out --add_discarded_group 0 --quick_run --precompute_features --seed 1 
 ```
 
  The ```--quick_run``` flag uses the hyperparameters defined in the [launcher.py](src/utils/hparams_registry.py) file, which can be changed by the user. Also, removing the ```--precompute_features``` flag allows for full finetuning experiments. 
@@ -69,14 +70,14 @@ python -m src.main --case train --datasets $DATASETS  --algorithms $ALGOS --data
 For each (method, dataset), we obtain results for 5 different  hyperparameter combinations with a fixed seed. 
 
 ```bash
-python -m src.main --case train --datasets $DATASETS  --algorithms $ALGOS --data_path ./data --out_dir ./out --add_discarded_group 0 --num_hparams_combs 5 --num_seeds 1 
+python -m src.main --case train --datasets $DATASETS  --algorithms $ALGOS --data_path ./datasets --out_dir ./out --add_discarded_group 0 --num_hparams_combs 5 --num_seeds 1 
 ```
 
 #### Selected hyperparameter combination x 3 seeds
 
 For each (method, dataset), we use the group balanced accuracy on the validation set to obtain the best hyperparamater combination. The best hyperparameter combinations are then run fo 3 random seeds.
 ```bash
-python -m src.main --case train  --datasets $DATASETS  --algorithms $ALGOS --data_path ./data --out_dir ./out  --add_discarded_group 0 --best_hparams_comb_selection_metric va_unf_acc --num_seeds 3
+python -m src.main --case train  --datasets $DATASETS  --algorithms $ALGOS --data_path ./datasets --out_dir ./out  --add_discarded_group 0 --best_hparams_comb_selection_metric va_unf_acc --num_seeds 3
 ```
 
 ### Analyzing Results
@@ -86,6 +87,20 @@ To read the results from the log files, run the following command.
 ```bash
 python -m src.scripts.analyze_results --dataset $DATASETS --algorithms $ALGOS --dir ./out --selection_criterion unf_acc
 ```
+
+### Group Complexity Experiments
+
+To reproduce results for the CRM's analysis with varying group size (Section G.6), use the following command to generate data for the specific ($m$, $d$) configuration
+
+```bash
+python -m src.data.multivariate_gaussian --total_attr m --total_cat d
+```
+
+The launch the following command to train model with $x$ percentage of groups dropped
+```bash
+python -m src.main --case train --datasets SynAED_{m}_{d}  --precompute_feat --quick_run --algorithms CRM --data_path ./datasets --out_dir ./out --add_discarded_group {(x-1)/10}  --num_seeds 1 
+```
+
 
 ## License
 

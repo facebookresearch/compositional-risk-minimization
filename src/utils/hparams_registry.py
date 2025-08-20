@@ -22,15 +22,20 @@ def get_hparams(args):
         'device': 'cuda' if torch.cuda.is_available() else 'cpu',
         'out_dir': args['out_dir'], 
         'add_discarded_groups': args['add_discarded_groups']
-        }
+        }        
 
     if 'SynAED' in args['dataset']:
-        hparams['data_path'] = hparams['data_path'] + '/syn_total_cat_' +  args['dataset'].split('_')[-1]
+        dataset_parts = args['dataset'].split('_')
+        # SynAED_TOTAL_ATTR_TOTAL_CAT format
+        if len(dataset_parts) == 3:  
+            syn_aed_total_attr = int(dataset_parts[1])
+            syn_aed_total_cat = int(dataset_parts[2])
+            hparams['data_path'] = hparams['data_path'] + f'/multivariate_gaussian/total_attr_{syn_aed_total_attr}_total_cat_{syn_aed_total_cat}'
+        else:
+            raise ValueError("Invalid dataset format for SynAED")
 
-    if 'SynGenAED' in args['dataset']:
-        hparams['data_path'] = hparams['data_path'] + '/syn_general_total_cat_' +  args['dataset'].split('_')[-1]
-
-    hparams['num_step'], hparams['checkpoint_freq'] = {
+    # Default configurations for different dataset types
+    default_configs = {
         'Waterbirds': [5001, 50],
         'CelebA': [10001, 50],
         'CelebAMultiAttr': [10001, 50],
@@ -39,21 +44,17 @@ def get_hparams(args):
         'MetaShift': [5001, 50],
         'CompositionalNICOpp': [10001, 50],
         'NICOpp': [10001, 50],
-        'Simple_2d': [100001, 50],
-        'SynAED_2': [100001, 50],
-        'SynAED_10': [100001, 50],
-        'SynAED_20': [100001, 50],
-        'SynAED_30': [100001, 50],
-        'SynAED_40': [100001, 50],
-        'SynAED_50': [100001, 50],
-        'SynGenAED_2': [100001, 50],
-        'SynGenAED_7': [100001, 50],
-        'SynGenAED_8': [100001, 50],
-        'SynGenAED_9': [100001, 50],
-        'SynGenAED_10': [100001, 50],
-        'SynGenAED_11': [100001, 50]}[args['dataset']]
+        'Simple_2d': [100001, 50]
+    }
+    
+    # Handle SynAED datasets dynamically
+    if 'SynAED' in args['dataset']:
+        hparams['num_step'], hparams['checkpoint_freq'] = [100001, 50]
+    else:
+        hparams['num_step'], hparams['checkpoint_freq'] = default_configs[args['dataset']]
 
-    hparams['num_m'] = {
+    # Default num_m configurations
+    default_num_m = {
         'Waterbirds': 2,
         'CelebA': 2,
         'CelebAMultiAttr': 16,
@@ -62,22 +63,17 @@ def get_hparams(args):
         'MetaShift': 2,
         'CompositionalNICOpp': 6,
         'NICOpp': 6,
-        'ImagenetBG': 2,
-        'Simple_2d': 2,
-        'SynAED_2': 2,
-        'SynAED_10': 10,
-        'SynAED_20': 20,
-        'SynAED_30': 30,
-        'SynAED_40': 40,
-        'SynAED_50': 50,
-        'SynGenAED_2': 2,
-        'SynGenAED_7': 64,
-        'SynGenAED_8': 128,
-        'SynGenAED_9': 256,
-        'SynGenAED_10': 512,
-        'SynGenAED_11': 1024}[args['dataset']]
+        'Simple_2d': 2
+    }
     
-    hparams['num_y'] = {
+    # Handle SynAED datasets dynamically: num_m = TOTAL_CAT^(TOTAL_ATTR-1)
+    if 'SynAED' in args['dataset']:
+        hparams['num_m'] = syn_aed_total_cat ** (syn_aed_total_attr - 1)
+    else:
+        hparams['num_m'] = default_num_m[args['dataset']]
+    
+    # Default num_y configurations
+    default_num_y = {
         'Waterbirds': 2,
         'CelebA': 2,
         'CelebAMultiAttr': 2,
@@ -86,20 +82,14 @@ def get_hparams(args):
         'MetaShift': 2,
         'CompositionalNICOpp': 60,
         'NICOpp': 60,
-        'ImagenetBG': 9,
-        'Simple_2d': 2,
-        'SynAED_2': 2,
-        'SynAED_10': 10,
-        'SynAED_20': 20,
-        'SynAED_30': 30,
-        'SynAED_40': 40,
-        'SynAED_50': 50,
-        'SynGenAED_2': 2,
-        'SynGenAED_7': 2,
-        'SynGenAED_8': 2,
-        'SynGenAED_9': 2,
-        'SynGenAED_10': 2,
-        'SynGenAED_11': 2}[args['dataset']]
+        'Simple_2d': 2    
+        }
+    
+    # Handle SynAED datasets dynamically: num_y = TOTAL_CAT
+    if 'SynAED' in args['dataset']:
+        hparams['num_y'] = syn_aed_total_cat
+    else:
+        hparams['num_y'] = default_num_y[args['dataset']]
 
     #Classification network configuration
     if hparams['algorithm_name'] in ['CRM']:
@@ -117,7 +107,7 @@ def get_hparams(args):
         hparams['weight_decay'] = 10 ** rs.uniform(-6, -3)
         hparams['batch_size'] = int(2 ** rs.uniform(4, 6))
         hparams['last_layer_dropout'] = rs.choice([0., 0.1, 0.5])
-    elif 'SynAED' in args['dataset'] or 'SynGenAED' in args['dataset']:
+    elif 'SynAED' in args['dataset']:
         hparams['net_type'] = 'linear'
         hparams['lr'] = 10 ** rs.uniform(-5, -3)
         hparams['weight_decay'] = 10 ** rs.uniform(-6, -3)
@@ -153,28 +143,22 @@ def get_hparams(args):
  
     # for debug only
     if hparams['quick_run']:
-        hparams['resume'] = False
-        hparams['num_step'] = 5001
-        hparams['num_workers'] = 0
-        hparams['lr'] = 0.01
-        hparams['weight_decay'] = 0
-        hparams['batch_size'] = 2048
-        hparams['last_layer_dropout'] = 0.1        
-        hparams['eta'] = 0.04
-        hparams['temp'] = 0.1
-        hparams['alpha']= 10
-
-        #Hparams for group complexity Experiments
-        # hparams['num_step'] = 50001
-        # hparams['lr'] = 0.01
-        # hparams['batch_size'] = 2048
-        # hparams['checkpoint_freq'] = 1000
-        
-        # #Simple 2D Experiments
-        # hparams['num_step'] = 15001
-        # hparams['lr'] = 0.0005
-        # hparams['batch_size'] = 128
-        # hparams['checkpoint_freq'] = 50
+        if 'SynAED' in args['dataset']:
+            hparams['num_step'] = 50001
+            hparams['lr'] = 0.01
+            hparams['batch_size'] = 2048
+            hparams['checkpoint_freq'] = 1000
+        else:
+            hparams['resume'] = False
+            hparams['num_step'] = 5001
+            hparams['num_workers'] = 0
+            hparams['lr'] = 0.01
+            hparams['weight_decay'] = 0
+            hparams['batch_size'] = 2048
+            hparams['last_layer_dropout'] = 0.1        
+            hparams['eta'] = 0.04
+            hparams['temp'] = 0.1
+            hparams['alpha']= 10
 
     ext = f'hpcomb_{args["hparams_comb"]}_seed{args["seed"]}'
     hparams['ckpt_file'] = os.path.join(hparams['out_dir'], f'ckpt_{ext}.pt')

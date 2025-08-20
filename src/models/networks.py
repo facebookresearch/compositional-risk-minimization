@@ -93,7 +93,7 @@ def get_network(hparams, log_prior_prob: torch.Tensor= None):
                 fc = torch.nn.Linear(net.net.classifier.in_features, hparams['num_y'])            
             fc.bias.data *= 0
             fc.weight.data *= 0
-        elif hparams['fc_type'] in ['add_energy', 'add_energy2']:
+        elif hparams['fc_type'] in ['add_energy']:
             fc = AdditiveEnergyModel(
                 d_in= net.net.classifier.in_features, 
                 num_classes= hparams['num_y'],
